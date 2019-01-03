@@ -11,6 +11,9 @@ import android.os.Looper
 import android.webkit.ValueCallback
 import android.webkit.WebView
 import android.widget.FrameLayout
+import mozilla.components.browser.engine.system.SystemEngineSession
+import mozilla.components.browser.engine.system.SystemEngineView
+import mozilla.components.browser.session.SessionManager
 import mozilla.components.concept.engine.EngineView
 import org.mozilla.tv.firefox.webrender.FocusedDOMElementCache
 import org.mozilla.tv.firefox.utils.BuildConstants
@@ -129,13 +132,12 @@ private fun getOrPutExtension(engineView: EngineView): EngineViewExtension {
 private class EngineViewExtension(engineView: EngineView) {
     val domElementCache: FocusedDOMElementCache = FocusedDOMElementCache(engineView)
 
+    private val sessionManager: SessionManager = engineView.asView().context.webRenderComponents.sessionManager
+
     /**
-     * Extract the wrapped WebView from the EngineView. This is a temporary workaround until all required functionality has
+     * Extract the wrapped WebView from the EngineSession. This is a temporary workaround until all required functionality has
      * been implemented in the upstream component.
-     *
-     * For now EngineView wraps a single WebView and we can easily extract that and apply workarounds. Later EngineView may
-     * keep multiple WebView instances to animate tab switches. However this part is not implemented yet and we should make
-     * sure that we upstream the missing functionality first.
      */
-    val webView: WebView = (engineView.asView() as FrameLayout).getChildAt(0) as WebView
+    val webView: WebView
+        get() = (sessionManager.getOrCreateEngineSession() as SystemEngineSession).webView
 }
