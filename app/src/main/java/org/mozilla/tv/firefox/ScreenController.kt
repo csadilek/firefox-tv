@@ -8,6 +8,7 @@ package org.mozilla.tv.firefox
 import android.content.Context
 import android.support.v4.app.FragmentManager
 import android.text.TextUtils
+import io.sentry.Sentry
 import mozilla.components.browser.session.Session
 import org.mozilla.tv.firefox.webrender.WebRenderFragment
 import org.mozilla.tv.firefox.navigationoverlay.NavigationOverlayFragment
@@ -18,15 +19,18 @@ import org.mozilla.tv.firefox.telemetry.UrlTextInputLocation
 import org.mozilla.tv.firefox.utils.URLs
 import org.mozilla.tv.firefox.utils.UrlUtils
 import org.mozilla.tv.firefox.widget.InlineAutocompleteEditText
+import java.lang.IllegalStateException
 
 class ScreenController(private val stateMachine: ScreenControllerStateMachine) {
 
     // TODO cache overlay fragment so that custom pinned sites don't fade in every time the menu is opened
 
     /**
-     * TODO
-     *
-     * not adding to backstack is intentional
+     * We add all the fragments at start instead of creating them when needed in order to make the assumption
+     * that all Fragments exist.
+     * To show the correct Fragment, we use Fragment hide/show to make sure the correct Fragment is visible.
+     * We DO NOT use the Fragment backstack so that all transitions are controlled in the same manner, and we
+     * don't end up mixing backstack actions with show/hide.
      */
     fun setUpFragmentsForNewSession(fragmentManager: FragmentManager, session: Session) {
         val renderFragment = WebRenderFragment.createForSession(session)
@@ -43,6 +47,13 @@ class ScreenController(private val stateMachine: ScreenControllerStateMachine) {
             .hide(pocketFragment)
             .hide(settingsFragment)
             .commitNow()
+
+        if (stateMachine.currentActiveScreen != ScreenControllerStateMachine.ActiveScreen.NAVIGATION_OVERLAY) {
+            Sentry.capture(
+                    IllegalStateException("Inconsistent state, expected " +
+                            "${ScreenControllerStateMachine.ActiveScreen.NAVIGATION_OVERLAY.name}," +
+                            " got ${stateMachine.currentActiveScreen.name}"))
+        }
     }
 
     /**
@@ -106,7 +117,8 @@ class ScreenController(private val stateMachine: ScreenControllerStateMachine) {
     }
 
     fun showBrowserScreenForUrl(fragmentManager: FragmentManager, url: String) {
-        // TODO comment explaining that browserfragment will always be available
+        // The browser Fragment will always be available because we create it when creating a session,
+        // and use the FragmentManager to hide it when it's not used.
         exposeWebRenderFragment(fragmentManager)
         stateMachine.webRenderLoaded()
         val browserFragment = fragmentManager.webRenderFragment()
