@@ -13,8 +13,10 @@ import mozilla.components.browser.session.Session
 import mozilla.components.browser.session.SessionManager
 import mozilla.components.feature.session.SessionUseCases
 import org.mozilla.tv.firefox.ext.postIfNew
+import org.mozilla.tv.firefox.ext.serviceLocator
 import org.mozilla.tv.firefox.ext.toUri
 import org.mozilla.tv.firefox.utils.TurboMode
+import org.mozilla.tv.firefox.utils.URLs
 
 /**
  * Repository that is responsible for storing state related to the browser.

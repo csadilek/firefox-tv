@@ -11,6 +11,8 @@ import android.os.Looper
 import android.webkit.ValueCallback
 import android.webkit.WebView
 import android.widget.FrameLayout
+import mozilla.components.browser.engine.system.SystemEngineSession
+import mozilla.components.browser.session.SessionManager
 import mozilla.components.concept.engine.EngineView
 import org.mozilla.tv.firefox.webrender.FocusedDOMElementCache
 import org.mozilla.tv.firefox.utils.BuildConstants
@@ -116,9 +118,12 @@ private val EngineView.webView: WebView
 private val extensions = WeakHashMap<EngineView, EngineViewExtension>()
 
 private fun getOrPutExtension(engineView: EngineView): EngineViewExtension {
-    extensions[engineView]?.let { return it }
+    extensions[engineView]?.let {
+        return it
+    }
 
     return EngineViewExtension(engineView).also {
+        extensions.clear()
         extensions[engineView] = it
     }
 }
@@ -126,16 +131,18 @@ private fun getOrPutExtension(engineView: EngineView): EngineViewExtension {
 /**
  * Cache of additional properties on [EngineView].
  */
-private class EngineViewExtension(engineView: EngineView) {
+private class EngineViewExtension(private val engineView: EngineView) {
     val domElementCache: FocusedDOMElementCache = FocusedDOMElementCache(engineView)
 
-    /**
-     * Extract the wrapped WebView from the EngineView. This is a temporary workaround until all required functionality has
-     * been implemented in the upstream component.
-     *
-     * For now EngineView wraps a single WebView and we can easily extract that and apply workarounds. Later EngineView may
-     * keep multiple WebView instances to animate tab switches. However this part is not implemented yet and we should make
-     * sure that we upstream the missing functionality first.
-     */
-    val webView: WebView = (engineView.asView() as FrameLayout).getChildAt(0) as WebView
+    private val sessionManager: SessionManager = engineView.asView().context.webRenderComponents.sessionManager
+
+    val webView: WebView
+        get() =
+            if (sessionManager.size > 0) {
+                (sessionManager.getOrCreateEngineSession() as SystemEngineSession).webView
+            } else {
+                // After clearing all session we temporarily don't have a selected session so
+                // we need to get it from the view hierarchy.
+                (engineView.asView() as FrameLayout).getChildAt(0) as WebView
+            }
 }
